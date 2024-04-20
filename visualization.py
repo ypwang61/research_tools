@@ -45,7 +45,7 @@ class ImageCaptionVisualizer:
         self,
         key: str, 
         note: str = '',
-        ratio_list: list = [1.0, 0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.02]
+        ratio_list: list = [0.99, 0.98, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.02, 0.01]
     ):  
         """
         vis the images and captions, for some given ratios of the add_values (particular key)
@@ -82,7 +82,6 @@ class ImageCaptionVisualizer:
         
         urls_selected = self.urls[index]
         captions_selected = self.captions[index]
-        clipscores_selected = self.clipscores[index]
         add_values_selected = {}
         for key, value in self.add_values.items():
             add_values_selected[key] = value[index]
@@ -92,7 +91,6 @@ class ImageCaptionVisualizer:
             note=note + f'_{add_values_key}_ratio_{ratio:.2f}',
             urls=urls_selected,
             captions=captions_selected,
-            clipscores=clipscores_selected,
             add_values=add_values_selected,
 
         )
@@ -149,9 +147,9 @@ class ImageCaptionVisualizer:
         # show the first num_show in the first row, and the last num_show in the second row
         # show the image, caption and clipscore in each subplot, then save the figure
         
-        # support chinese font
-        plt.rcParams['font.sans-serif'] = ['SimHei']
-        plt.rcParams['axes.unicode_minus'] = False
+        # support chinese font --> sometimes fail, just for my server :)
+        plt.rcParams['font.sans-serif'] = ['DejaVu Sans']  # default font
+        plt.rcParams['axes.unicode_minus'] = False  # support minus sign
         
         fig, axs = plt.subplots(self.show_array[0], self.show_array[1], figsize=(20, 15))
         
@@ -168,6 +166,12 @@ class ImageCaptionVisualizer:
             success_flag = False
             while 1:
                     index += 1 # index increase
+                    # print(f'index: {index}')
+                    
+                    if index >= len(urls): # if urls is too short
+                        print(f'urls is too short, recommend to input more data, index: {index}, len(urls): {len(urls)}')
+                        break
+                    
                     if success_flag: 
                         # last time success, so i and j should be updated
                         i +=1
@@ -187,7 +191,7 @@ class ImageCaptionVisualizer:
                             add_value[key] = value[index]
                     
                     try:
-                        request = requests.get(url, stream=True, )
+                        request = requests.get(url, stream=True, timeout=5)
                         
                         if request.status_code == 200: # success
                             # print(f'{index}: caption: {caption}')
@@ -236,3 +240,65 @@ class ImageCaptionVisualizer:
         
         
 
+
+        
+        
+        
+class ScatterPlot:
+    def __init__(
+        self, 
+        save_path: str,
+        Xs: np.ndarray,
+        Ys: np.ndarray,
+        labels: list,
+        X_name: str,
+        Y_name: str,
+        label_names: list,
+        
+        random_sample: int = 3000,
+    ):
+        """
+        For each pair of Xs and Ys, plot the scatter plot with color given by labels. legend is given by label_names.
+        """
+        self.save_path = os.path.join(save_path, 'vis')
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
+            print(f'make dir {self.save_path}')
+        
+        assert len(Xs) == len(Ys) == len(labels)
+        self.Xs = Xs
+        self.Ys = Ys
+        # labels -> numpy
+        self.labels = np.array(labels)
+        self.X_name = X_name
+        self.Y_name = Y_name
+        self.label_names = label_names
+        if random_sample is not None:
+            sample_index = np.random.choice(len(Xs), random_sample, replace=False)
+            self.Xs = Xs[sample_index]
+            self.Ys = Ys[sample_index]
+            self.labels = self.labels[sample_index]
+            
+        
+    def plot_scatter(self, note: str = ''):
+        # figure
+        fig, ax = plt.subplots()
+        
+        for i in range(len(self.label_names)):
+            index = np.where(self.labels == i)[0]
+            ax.scatter(self.Xs[index], self.Ys[index], label=self.label_names[i])
+            
+        
+        ax.legend()
+        ax.set_xlabel(self.X_name)
+        ax.set_ylabel(self.Y_name)
+        ax.set_title(note)
+        
+        pic_name = os.path.join(self.save_path, f'scatter_{note}.png')
+        plt.savefig(pic_name)
+        
+        print(f'save scatter plot to {pic_name}')
+        
+        plt.close()
+            
+            
