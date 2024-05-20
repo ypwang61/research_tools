@@ -6,15 +6,15 @@ from typing import List, Dict
 
 class ImageCaptionVisualizer:
     def __init__(
-        self,
-        save_path: str,
-        
-        urls: np.ndarray,
-        captions: np.ndarray,
-        add_values: dict = None,
-        
-        show_array: tuple = (3, 5),
-        
+            self,
+            save_path: str,
+
+            urls: np.ndarray,
+            captions: np.ndarray,
+            add_values: dict = None,
+            with_caption=True,
+            show_array: tuple = (10, 7)
+
     ):
         """
         Initialize the ImageCaptionVisualizer, and save the urls, captions, add_values, etc.
@@ -24,7 +24,26 @@ class ImageCaptionVisualizer:
             urls (np.ndarray):  list of urls of the images
             captions (np.ndarray): list of captions of the images
             add_values (dict, optional): dict of values that need to show together, e.g., clip_score, vass, etc. Defaults to None.
+            with_caption: whether to add caption as image title or not.
             show_array (tuple, optional): the shape of the visualization figure. Defaults to (3, 5).
+
+        Example to use class:
+
+        ICV = ImageCaptionVisualizer(
+        save_path=save_dir,
+        urls = urls,
+        captions = captions,
+        add_values=add_values,
+        show_array = (10, 7)
+        )
+
+        ICV.vis_datasets(
+            note = f'_standard',
+            key = 'rank_new_cs',
+            # key = 'new_cs',
+            ratio_list = [0.8],
+            repeat_num= 1
+        )
         """
         self.save_path = os.path.join(save_path, 'vis')
         if not os.path.exists(self.save_path):
@@ -32,37 +51,38 @@ class ImageCaptionVisualizer:
             print(f'make dir {self.save_path}')
         else:
             print(f'{self.save_path} exists')
-        
-        
+
         self.urls = urls
         self.captions = captions
         self.add_values = add_values
         self.show_array = show_array
-    
-    
+        self.with_caption = with_caption
+
     def vis_datasets(
-        self,
-        key: str, 
-        note: str = '',
-        ratio_list: list = [1.0, 0.99, 0.98, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.0],
-        repeat_num = 1
-    ):  
+            self,
+            key: str,
+            note: str = '',
+            ratio_list: list = [1.0, 0.99, 0.98, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1,
+                                0.05, 0.02, 0.01, 0.0],
+            repeat_num=1
+    ):
         """
         vis the images and captions, for some given ratios of the add_values (particular key)
         will show the images and captions and add_values with the add_values[key] in the top ratio.
 
         """
         print(f'vis_datasets: note = {note}')
-        
+
         for ratio in ratio_list:
-            self.vis_images_captions_given_add_values(ratio = ratio, add_values_key=key, note=note, repeat_time=repeat_num)
-    
+            self.vis_images_captions_given_add_values(ratio=ratio, add_values_key=key, note=note,
+                                                      repeat_time=repeat_num)
+
     def vis_images_captions_given_add_values(
-        self,
-        ratio: float, # 0.0~1.0
-        add_values_key: str, # support clip_score, add_values
-        note: str = '',
-        repeat_time: int = 1
+            self,
+            ratio: float,  # 0.0~1.0
+            add_values_key: str,  # support clip_score, add_values
+            note: str = '',
+            repeat_time: int = 1
     ):
         if self.add_values is None:
             index = np.arange(len(self.urls))
@@ -70,24 +90,25 @@ class ImageCaptionVisualizer:
             add_values = self.add_values[add_values_key]
             if ratio == 1.0:
                 # select the top 100 values
-                neg_start = max(0, len(add_values)-100)
+                neg_start = max(0, len(add_values) - 100)
                 index = np.argsort(add_values)[neg_start:]
             else:
-                target_add_value_upper = np.quantile(add_values, min(ratio+0.01,1.0), interpolation='higher')
-                target_add_value_lower = np.quantile(add_values, max(ratio-0.01,0.0))
+                target_add_value_upper = np.quantile(add_values, min(ratio + 0.01, 1.0), interpolation='higher')
+                target_add_value_lower = np.quantile(add_values, max(ratio - 0.01, 0.0))
                 # target_clipscore +- 1% ratio
-                index = np.where((add_values>=target_add_value_lower) \
-                                    & (add_values<=target_add_value_upper))[0]
-        
+                index = np.where((add_values >= target_add_value_lower) \
+                                 & (add_values <= target_add_value_upper))[0]
+
         print(f'len of index: {len(index)}')
-        
+
         urls_selected = self.urls[index]
         captions_selected = self.captions[index]
         add_values_selected = {}
         for key, value in self.add_values.items():
             add_values_selected[key] = value[index]
-        
+
         index = -1
+        with_caption = self.with_caption
         for i in range(repeat_time):
             print(f'repeat time: {i}, index: {index}')
             index = self.vis_images_captions(
@@ -95,38 +116,35 @@ class ImageCaptionVisualizer:
                 urls=urls_selected,
                 captions=captions_selected,
                 add_values=add_values_selected,
+                with_caption=with_caption,
                 index=index
             )
-        
-    
-    
-    def print_error(self, f, url, caption, add_value, reason='fail to download image', print_error = False):
+
+    def print_error(self, f, url, caption, add_value, reason='fail to download image', print_error=False):
         if not print_error:
             return
         f.write(f'=========================================================')
         f.write(f'error: {reason}')
-        
+
         l = f'url: {url}\ncaption: {caption}\n'
         for key, value in add_value.items():
             l += f'\n{key}: {value}'
         f.write(l)
         f.write(f'=========================================================')
-    
-    
-    
+
     def vis_images_captions(
-        self,
-        note: str = '',
-        
-        urls: np.ndarray = None,
-        captions: np.ndarray = None,
-        add_values: dict = None,
-        
-        index = -1
+            self,
+            note: str = '',
+
+            urls: np.ndarray = None,
+            captions: np.ndarray = None,
+            add_values: dict = None,
+            with_caption=True,
+            index=-1
     ):
         """
         vis the images and captions
-        
+
         Args:
             note (str, optional): note for visualization. Defaults to ''.
             urls (np.ndarray, optional):  list of urls of the images. Defaults to None.
@@ -137,54 +155,66 @@ class ImageCaptionVisualizer:
             urls = self.urls
         if captions is None:
             captions = self.captions
-            
+
         if add_values is None:
             add_values = self.add_values
-        
-        
+
         # obtain the images and captions
         import requests
         from PIL import Image
         from io import BytesIO
-        
+
         # get the first num_show and last num_show images and captions with clipscores
         # show the first num_show in the first row, and the last num_show in the second row
         # show the image, caption and clipscore in each subplot, then save the figure
-        
+
         # support chinese font --> sometimes fail, just for my server :)
         plt.rcParams['font.sans-serif'] = ['DejaVu Sans']  # default font
+
         plt.rcParams['axes.unicode_minus'] = False  # support minus sign
-        
-        fig, axs = plt.subplots(self.show_array[0], self.show_array[1], figsize=(20, 15))
-        
-        
-        # print the captions into a file
-        caption_file = os.path.join(self.save_path,  f'captions_{note}.txt')
-        print(f'print captions to {caption_file}')
-        
-        with open(caption_file, 'w') as f:
-            
-            # index = -1
-            
-            i, j = 0, 0
-            success_flag = False
-            while 1:
-                    index += 1 # index increase
+        plt.rcParams['axes.titlesize'] = 10
+
+        for cap_option in [True, False]:
+
+            if cap_option == False:
+                fig, axs = plt.subplots(self.show_array[0], self.show_array[1], figsize=(13, 16))
+            else:
+                fig, axs = plt.subplots(self.show_array[0], self.show_array[1], figsize=(14, 16))
+
+            fig.tight_layout()
+            fig.subplots_adjust(wspace=0.05)
+
+            if cap_option == False:
+                fig.subplots_adjust(wspace=0.05, hspace=0.05)
+
+            # print the captions into a file
+            caption_file = os.path.join(self.save_path, f'captions_{note}.txt')
+            print(f'print captions to {caption_file}')
+
+            with open(caption_file, 'w') as f:
+
+                # index = -1
+
+                i, j = 0, 0
+                success_flag = False
+                while 1:
+                    index += 1  # index increase
                     # print(f'index: {index}')
-                    
-                    if index >= len(urls): # if urls is too short
-                        print(f'urls is too short, recommend to input more data, index: {index}, len(urls): {len(urls)}')
+
+                    if index >= len(urls):  # if urls is too short
+                        print(
+                            f'urls is too short, recommend to input more data, index: {index}, len(urls): {len(urls)}')
                         break
-                    
-                    if success_flag: 
+
+                    if success_flag:
                         # last time success, so i and j should be updated
-                        i +=1
+                        i += 1
                         if i == self.show_array[0]:
                             i = 0
                             j += 1
                             if j == self.show_array[1]:
                                 break
-                    
+
                     success_flag = False
                     # index = i*self.show_array[1]+j
                     url = urls[index]
@@ -193,39 +223,43 @@ class ImageCaptionVisualizer:
                     if add_values is not None:
                         for key, value in add_values.items():
                             add_value[key] = value[index]
-                    
+
                     try:
                         request = requests.get(url, stream=True, timeout=5)
-                        
-                        if request.status_code == 200: # success
+
+                        if request.status_code == 200:  # success
                             # print(f'{index}: caption: {caption}')
-                            
+
                             try:
                                 image = Image.open(BytesIO(request.content))
                                 f.write(f'({i}, {j}): \nurl: {url}\ncaption: {caption}\n')
                             except:
                                 # self.print_error(f, url, caption, add_value, reason='fail to open image')
                                 continue
-                                                    
-                            axs[i, j].imshow(image)
+
+                            axs[i, j].imshow(image, aspect="auto")
                             axs[i, j].axis('off')
-                            
+
                             title = ''
-                            for key, value in add_value.items():
-                                title += f'{key}: {value:.4f}\n'
-                            
+                            # for key, value in add_value.items():
+                            #     title += f'{key}: {value:.4f}\n'
+
                             # add caption to the title, but restrict the range of the caption so that it will not influence other subplots
                             # every 30 characters, add a '\n'. The total length of caption should be less than 200
+                            each_line = 23
+                            max_caption_word = 46
                             caption = caption.replace('\n', ' ')
                             caption = caption.replace('\r', ' ')
                             caption = caption.replace('\t', ' ')
-                            caption = caption[:200]
-                            for k in range(0, len(caption), 30):
-                                end = min(k+30, len(caption))
+                            caption = caption[:max_caption_word]
+
+                            for k in range(0, len(caption), each_line):
+                                end = min(k + each_line, len(caption))
                                 title += '\n' + caption[k:end]
-                                
-                            axs[i, j].set_title(title)
-                            
+
+                            if cap_option == True:
+                                axs[i, j].set_title(title)
+
                             success_flag = True
                         else:
                             # self.print_error(f, url, caption, add_value, reason='fail to download image')
@@ -233,13 +267,19 @@ class ImageCaptionVisualizer:
                     except requests.exceptions.RequestException as e:
                         # self.print_error(f, url, caption, clip_score, add_value, reason=str(e))
                         pass
-                        
-                
-        pic_name = os.path.join(self.save_path, f'images_{note}.png')
-                
-        plt.savefig(pic_name)
-        print(f'save image to {pic_name}, txt in {caption_file}, index = {index}')
-        
+
+            print('finish all images')
+            if cap_option == True:
+                note_print = note + '_caption_True'
+            else:
+                note_print = note + '_caption_False'
+
+            pic_name = os.path.join(self.save_path, f'images_{note_print}.png')
+
+            plt.savefig(pic_name, bbox_inches="tight")
+
+            print(f'save image to {pic_name}, txt in {caption_file}, index = {index}')
+
         return index
         
         
