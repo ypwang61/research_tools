@@ -3,6 +3,8 @@ import os
 import matplotlib.pyplot as plt
 from typing import List, Dict
 
+import jieba
+from wordcloud import WordCloud, STOPWORDS
 
 class ImageCaptionVisualizer:
     def __init__(
@@ -379,34 +381,109 @@ class ScatterPlot:
         print(f'save scatter plot to {pic_name}')
         
         plt.close()
-            
+
+class DrawWordCloud:
+    def __init__(
+        self, 
+        txt_path: str,
+        save_path: str = 'outputs',
+        stopwords: list = []
+    ):
+        """
+        txt_path: the path of the txt file
+        save_path: the path to save the word cloud image
+        """
+        self.txt_path = txt_path
+        self.save_path = os.path.join(save_path, 'vis')
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
+            print(f'make dir {self.save_path}')
+
+        if stopwords is None:
+            self.stopwords = set(STOPWORDS)
+        else:
+            self.stopwords = set(stopwords)
+
+    
+    def generate_wordcloud(self):
+        
+        # read the txt file
+        with open(self.txt_path, 'r', encoding='utf-8') as f:
+            txt = f.read()
+        
+        
+
+        # split the txt into words and delete all the stopwords
+        words = ' '.join(jieba.cut(txt))
+        words = ' '.join([word for word in words.split() if word not in self.stopwords])
+
+        
+        # generate the word cloud
+        wc = WordCloud(
+            # font_path='msyh.ttc',
+            background_color='white',
+            width=800,
+            height=600,
+            max_words=200,
+            max_font_size=100,
+            min_font_size=10,
+            # stopwords=self.stopwords,
+            random_state=42,
+            # prefer_horizontal=0.7,    # Allow some vertical words
+            # rotation_step=45
+        )
+        wc.generate(words)
+        
+        # save the word cloud
+        wc.to_file(os.path.join(self.save_path, 'wordcloud.png'))
+        wc.to_file(os.path.join(self.save_path, 'wordcloud.pdf'))
+
+        # # save the word cloud by plt
+        # plt.figure()
+        # plt.imshow(wc, interpolation='bilinear')
+        # plt.axis('off')
+        # plt.savefig(os.path.join(self.save_path, 'wordcloud_plt.png'))
+
+        # print(f'save word cloud to {self.save_path}')
+
+
+        
+
 
 if __name__ == '__main__':
-    save_path = '../results'
+    # save_path = '../results'
     
-    X_names = ['Downsampling ratio', 'Downsampling ratio']
-    Y_names = ['ImageNet-1k accuracy', 'Average performance']
-    title_names = ['ImageNet-1k', 'Average over 38 datasets']
+    # X_names = ['Downsampling ratio', 'Downsampling ratio']
+    # Y_names = ['ImageNet-1k accuracy', 'Average performance']
+    # title_names = ['ImageNet-1k', 'Average over 38 datasets']
     
-    X_values = [
-        np.array([0.1, 0.2, 0.3, 0.4, 0.5]),
-        np.array([0.1, 0.2, 0.3, 0.4, 0.5])
-    ]
+    # X_values = [
+    #     np.array([0.1, 0.2, 0.3, 0.4, 0.5]),
+    #     np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+    # ]
     
-    method_Ys = [
-        {
-            'CLIPScore': np.array([18.2, 25.4, 26.4, 26.1, 25.0]),
-            'negCLIPLoss': np.array([20.3, 27.4, 27.9, 26.8, 24.8])
-        },
-        {
-            'CLIPScore': np.array([26.2, 31.0, 32.2, 31.9, 30.8]),
-            'negCLIPLoss': np.array([27.0, 32.5, 32.9, 32.2, 31.2])
-        }
-    ]
+    # method_Ys = [
+    #     {
+    #         'CLIPScore': np.array([18.2, 25.4, 26.4, 26.1, 25.0]),
+    #         'negCLIPLoss': np.array([20.3, 27.4, 27.9, 26.8, 24.8])
+    #     },
+    #     {
+    #         'CLIPScore': np.array([26.2, 31.0, 32.2, 31.9, 30.8]),
+    #         'negCLIPLoss': np.array([27.0, 32.5, 32.9, 32.2, 31.2])
+    #     }
+    # ]
     
-    method_names = method_Ys[0].keys()
+    # method_names = method_Ys[0].keys()
     
-    note = 'CLIPScore_vs_negCLIPLoss'
+    # note = 'CLIPScore_vs_negCLIPLoss'
     
-    comparison = MethodResultComparison(save_path, method_names, X_names, Y_names, title_names, X_values, method_Ys, note)
-    comparison.plot_subgraphs()
+    # comparison = MethodResultComparison(save_path, method_names, X_names, Y_names, title_names, X_values, method_Ys, note)
+    # comparison.plot_subgraphs()
+
+
+    DWC = DrawWordCloud(
+        '/datadrive_a/yiping/z_Demo/prompts_sum_sorted.txt', 
+        stopwords=["man", "woman", "boy", "girl", "person", "child"]
+        # stopwords=[]
+    )
+    DWC.generate_wordcloud()
